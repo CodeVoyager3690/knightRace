@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Knight Race Game</title>
+  <style>
+    body { display: flex; justify-content: center; margin-top: 20px; font-family: sans-serif; }
+    #board { display: grid; grid-template-columns: repeat(8, 60px); grid-template-rows: repeat(8, 60px); }
+    .square {
+      width: 60px; height: 60px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 30px; font-weight: bold;
+    }
+    .light { background: #f0d9b5; }
+    .dark { background: #b58863; }
+    .target { background: green !important; }
+    .knight1 { color: red; }
+    .knight2 { color: blue; }
+    .highlight { outline: 3px solid yellow; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div>
+    <h2 id="status">Red Knight's turn</h2>
+    <div id="board"></div>
+  </div>
+
+  <script>
+    const board = document.getElementById("board");
+    const status = document.getElementById("status");
+
+    const size = 8;
+    let knight1Pos = [0, 0]; // Red Knight
+    let knight2Pos = [7, 7]; // Blue Knight
+    const targetPos = [Math.floor(Math.random()*size), Math.floor(Math.random()*size)];
+    
+    let turn = 1; // 1 = red, 2 = blue
+    let gameOver = false;
+
+    function isSamePos(a, b) {
+      return a[0] === b[0] && a[1] === b[1];
+    }
+
+    function knightMoves([x, y]) {
+      const moves = [
+        [x+2, y+1], [x+2, y-1], [x-2, y+1], [x-2, y-1],
+        [x+1, y+2], [x+1, y-2], [x-1, y+2], [x-1, y-2],
+      ];
+      return moves.filter(([nx, ny]) => nx>=0 && nx<size && ny>=0 && ny<size);
+    }
+
+    function drawBoard() {
+      board.innerHTML = "";
+      for (let y=0; y<size; y++) {
+        for (let x=0; x<size; x++) {
+          const square = document.createElement("div");
+          square.className = "square " + ((x+y)%2===0 ? "light":"dark");
+          
+          if (isSamePos([x,y], targetPos)) square.classList.add("target");
+          if (isSamePos([x,y], knight1Pos)) square.innerHTML = "♞", square.classList.add("knight1");
+          if (isSamePos([x,y], knight2Pos)) square.innerHTML = "♞", square.classList.add("knight2");
+
+          // highlight legal moves
+          if (!gameOver) {
+            const activePos = turn === 1 ? knight1Pos : knight2Pos;
+            knightMoves(activePos).forEach(([mx,my]) => {
+              if (mx===x && my===y) {
+                square.classList.add("highlight");
+                square.onclick = () => moveKnight([mx,my]);
+              }
+            });
+          }
+
+          board.appendChild(square);
+        }
+      }
+    }
+
+    function moveKnight(newPos) {
+      if (gameOver) return;
+      if (turn === 1) knight1Pos = newPos;
+      else knight2Pos = newPos;
+
+      // check win
+      if (isSamePos(newPos, targetPos)) {
+        status.textContent = (turn === 1 ? "Red" : "Blue") + " Knight wins!";
+        gameOver = true;
+        drawBoard();
+        return;
+      }
+
+      // switch turn
+      turn = (turn === 1 ? 2 : 1);
+      status.textContent = (turn === 1 ? "Red" : "Blue") + " Knight's turn";
+      drawBoard();
+    }
+
+    drawBoard();
+  </script>
+</body>
+</html>

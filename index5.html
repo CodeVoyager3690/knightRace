@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Knight Race</title>
+
+  <style>
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      min-height: 100vh;
+      margin: 0;
+      background: linear-gradient(135deg, #2c3e50, #34495e);
+      font-family: "Segoe UI", sans-serif;
+      color: #fff;
+    }
+
+    h1 {
+      margin-bottom: 5px;
+      font-size: 2.2rem;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.6);
+    }
+
+    #status {
+      margin-bottom: 15px;
+      font-size: 1.2rem;
+    }
+
+    #board {
+      display: grid;
+      grid-template-columns: repeat(8, 70px);
+      grid-template-rows: repeat(8, 70px);
+      background: #b58863;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .square {
+      width: 70px;
+      height: 70px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 60px;
+      transition: transform 0.2s;
+    }
+
+    .light { background: #f0d9b5; }
+    .dark { background: #b58863; }
+
+    .target {
+      background: radial-gradient(circle, #4caf50, #2e7d32) !important;
+      box-shadow: inset 0 0 15px #66ff99;
+    }
+
+    .knight1 { color: black; }
+    .knight2 { color: white; text-shadow: 0 0 6px #000; }
+
+    .highlight {
+      cursor: pointer;
+      box-shadow: 0 0 0 3px yellow;
+      z-index: 1;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .highlight:hover {
+      transform: scale(1.1);
+      box-shadow: 0 0 10px 3px yellow;
+    }
+
+    #overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      color: #fff;
+      font-size: 2rem;
+      visibility: hidden;
+    }
+
+    #restart {
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      background: #3498db;
+      color: white;
+      transition: background 0.2s;
+    }
+    #restart:hover { background: #2980b9; }
+
+
+    #goal {
+  margin-bottom: 10px;
+  font-size: 1.2rem;
+  color: #ffd700; /* gold for emphasis */
+  text-shadow: 1px 1px 3px rgba(0,0,0,0.7);
+}
+  </style>
+</head>
+<body>
+  <h1>⚔️ Knight Race</h1>
+  <div id="goal">🎯 Get to the target square before the bot!</div>
+  <div id="status">Your turn</div>
+  <div id="board"></div>
+
+  <div id="overlay">
+    <div id="winnerText"></div>
+    <button id="restart">Restart Game</button>
+  </div>
+
+  <script>
+    const board = document.getElementById("board");
+    const status = document.getElementById("status");
+    const overlay = document.getElementById("overlay");
+    const winnerText = document.getElementById("winnerText");
+    const restartBtn = document.getElementById("restart");
+
+    const size = 8;
+    let knight1Pos, knight2Pos, targetPos, turn, gameOver;
+
+    // --- SOUNDS ---
+    const moveSound = new Audio('sounds/chessmovesound.mp3');
+    const botSound = new Audio('sounds/chessmovesound.mp3');
+    const winSound = new Audio('sounds/win.mp3');
+
+    function initGame() {
+      knight1Pos = [0, 0]; // Human
+      knight2Pos = [7, 7]; // Bot
+
+      do {
+        targetPos = [Math.floor(Math.random()*size), Math.floor(Math.random()*size)];
+      } while (isSamePos(targetPos, knight1Pos) || isSamePos(targetPos, knight2Pos));
+      
+      turn = 1; // human starts
+      gameOver = false;
+      overlay.style.visibility = "hidden";
+      status.textContent = "Your turn";
+      drawBoard();
+    }
+
+    function isSamePos(a, b) {
+      return a[0] === b[0] && a[1] === b[1];
+    }
+
+    function knightMoves([x, y]) {
+      const moves = [
+        [x+2, y+1], [x+2, y-1], [x-2, y+1], [x-2, y-1],
+        [x+1, y+2], [x+1, y-2], [x-1, y+2], [x-1, y-2],
+      ];
+      return moves.filter(([nx, ny]) => nx>=0 && nx<size && ny>=0 && ny<size);
+    }
+
+    function drawBoard() {
+      board.innerHTML = "";
+      for (let y=0; y<size; y++) {
+        for (let x=0; x<size; x++) {
+          const square = document.createElement("div");
+          square.className = "square " + ((x+y)%2===0 ? "light":"dark");
+          
+          if (isSamePos([x,y], targetPos)) square.classList.add("target");
+          if (isSamePos([x,y], knight1Pos)) square.innerHTML = "♞", square.classList.add("knight1");
+          if (isSamePos([x,y], knight2Pos)) square.innerHTML = "♘", square.classList.add("knight2");
+
+          if (!gameOver && turn === 1) {
+            const activePos = knight1Pos;
+            knightMoves(activePos).forEach(([mx,my]) => {
+              if (mx===x && my===y) {
+                square.classList.add("highlight");
+                square.onclick = () => moveKnight([mx,my]);
+              }
+            });
+          }
+
+          board.appendChild(square);
+        }
+      }
+    }
+
+    function moveKnight(newPos) {
+      if (gameOver) return;
+
+      if (turn === 1) {
+        knight1Pos = newPos; // human
+        moveSound.play();    // play human move sound
+      } else {
+        knight2Pos = newPos; // bot
+      }
+
+      if (isSamePos(newPos, targetPos)) {
+        winnerText.textContent = (turn === 1 ? "🎉 You Win!" : "🤖 Bot Wins!");
+        overlay.style.visibility = "visible";
+        gameOver = true;
+        winSound.play(); // play victory sound
+        drawBoard();
+        return;
+      }
+
+      // switch turn
+      turn = (turn === 1 ? 2 : 1);
+      status.textContent = (turn === 1 ? "Your turn" : "Bot's turn");
+      drawBoard();
+
+      if (!gameOver && turn === 2) botMove();
+    }
+
+    function knightDistance(start, end) {
+      const visited = Array.from({length: size}, () => Array(size).fill(false));
+      const queue = [[start[0], start[1], 0]];
+      visited[start[0]][start[1]] = true;
+
+      while (queue.length) {
+        const [x, y, dist] = queue.shift();
+        if (x === end[0] && y === end[1]) return dist;
+
+        knightMoves([x, y]).forEach(([nx, ny]) => {
+          if (!visited[nx][ny]) {
+            visited[nx][ny] = true;
+            queue.push([nx, ny, dist + 1]);
+          }
+        });
+      }
+      return Infinity;
+    }
+
+    function botMove() {
+      if (gameOver) return;
+      const moves = knightMoves(knight2Pos);
+
+      let bestMove = moves[0];
+      let minDist = knightDistance(moves[0], targetPos);
+
+      moves.forEach(move => {
+        const d = knightDistance(move, targetPos);
+        if (d < minDist) {
+          minDist = d;
+          bestMove = move;
+        }
+      });
+
+      setTimeout(() => {
+        botSound.play();        // play bot move sound
+        moveKnight(bestMove);
+      }, 300);
+    }
+
+    restartBtn.onclick = initGame;
+
+    initGame();
+  </script>
+</body>
+</html>
