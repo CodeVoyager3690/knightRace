@@ -284,7 +284,14 @@
       }, 300);
     }
 
-    restartBtn.onclick = initGame;
+    function trackButtonClick() {
+    gtag('event', 'button_click', {
+      'button_name': 'startNewGameButton',
+      'button_location': 'middleOfPage'
+    });
+  }
+
+    restartBtn.onclick = () => {initGame(); trackButtonClick(); }
 
     initGame();
   </script>
